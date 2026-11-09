@@ -25,6 +25,7 @@ HTML report: `build/reports/tests/test/index.html`
 
 ```
 src/test/kotlin/
+├── BaseApiTest.kt           — shared test data, booking creation, token, cleanup after each test
 ├── BookingGetTest.kt        — get bookings (positive)
 ├── BookingCrudTest.kt       — create and delete a booking (positive)
 ├── BookingNegativeTest.kt   — negative, boundary and validation checks
@@ -37,11 +38,11 @@ src/test/resources/schemas/
 
 | # | Test | Type | What it checks |
 |---|------|------|----------------|
-| 1 | `list of bookings returns 200 and is not empty` | positive | The booking list returns 200 and JSON, the list is not empty, items have `bookingid` |
-| 2 | `booking by id has firstname and lastname` | positive | A booking by an existing id (taken from the list) returns 200 and JSON with `firstname` and `lastname` |
-| 3 | `create booking returns id and saved data` | positive | Creating a booking returns 200 and a `bookingid`, and the server saved exactly the data that was sent |
+| 1 | `list of bookings contains created booking` | positive | The test creates its own booking; the booking list returns 200 and JSON and contains the new `bookingid` |
+| 2 | `booking by id returns its data` | positive | The test creates its own booking; GET by its id returns 200 and JSON, `firstname` and `lastname` match the data sent |
+| 3 | `create booking returns id and saved data` | positive | Creating a booking returns 200 and a `bookingid` with the data that was sent; a follow-up GET by id confirms the booking was saved |
 | 4 | `deleted booking can not be found anymore` | positive | A new booking is deleted with a token (201), then GET by its id returns 404 |
-| 5 | `forbidden delete of booking without token` | negative | Deleting a booking without a token is rejected with 403 |
+| 5 | `forbidden delete of booking without token` | negative | Deleting a booking without a token is rejected with 403; a follow-up GET confirms the booking still exists |
 | 6 | `impossible get of unexisting booking` | boundary | A request with an impossible id (`-100`) returns 404 |
 | 7 | `booking with no name returns 400` | validation | Creating a booking without the required `firstname` should return 400 (disabled, see bugs) |
 | 8 | `incorrect password does not return token` | negative | A wrong password gives no token and returns `reason: Bad credentials` |
@@ -72,10 +73,12 @@ The test `new booking matches json schema` checks the whole response against thi
 
 ## Test independence
 
-The service is shared: other people create and delete bookings, and the data is reset from time to time. A hardcoded id can disappear and make a test flaky, so the tests never use one:
+The service is shared: other people create and delete bookings, and the data is reset from time to time. So every test has its own test data and never relies on shared or hardcoded data:
 
-- read tests take an existing id from `GET /booking`;
-- delete, contract and negative tests create their own booking and work only with it;
+- every test that needs a booking creates its own with `createBooking()` and works only with it;
+- after each test, `cleanUp()` (annotated with `@AfterEach`) deletes every booking the test created, even if the test failed, so no test data is left on the server;
 - the "non-existent booking" test uses id `-100`, which cannot exist.
+
+Shared data and helpers (`baseUrl`, the booking body, `createBooking()`, `getToken()`, `cleanUp()`) live in the base class `BaseApiTest`, which all test classes extend.
 
 Every test can run any number of times and in any order.
