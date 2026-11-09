@@ -1,4 +1,3 @@
-import io.restassured.module.kotlin.extensions.Extract
 import io.restassured.module.kotlin.extensions.Given
 import io.restassured.module.kotlin.extensions.Then
 import io.restassured.module.kotlin.extensions.When
@@ -7,24 +6,7 @@ import org.hamcrest.Matchers.nullValue
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 
-class BookingNegativeTest {
-    private val baseUrl = "https://restful-booker.herokuapp.com"
-
-    private val newBooking =
-        """
-        {
-         "firstname" : "Jim",
-        "lastname" : "Brown",
-        "totalprice" : 111,
-        "depositpaid" : true,
-        "bookingdates" : {
-            "checkin" : "2018-01-01",
-            "checkout" : "2019-01-01"
-        },
-        "additionalneeds" : "Breakfast"
-        }
-        """.trimIndent()
-
+class BookingNegativeTest : BaseApiTest() {
     private val idUnexistingBooking = -100
 
     private val bookingWithNoName =
@@ -36,7 +18,7 @@ class BookingNegativeTest {
             "bookingdates" : {
                 "checkin" : "2018-01-01",
                 "checkout" : "2019-01-01"
-        },
+            },
             "additionalneeds" : "Breakfast"
         }
         """.trimIndent()
@@ -51,25 +33,24 @@ class BookingNegativeTest {
 
     @Test
     fun `forbidden delete of booking without token`() {
-        val id: Int =
-            Given {
-                baseUri(baseUrl)
-                contentType("application/json")
-                accept("application/json")
-                body(newBooking)
-            } When {
-                post("/booking")
-            } Extract {
-                path("bookingid")
-            }
+        val id = createBooking()
 
         Given {
             baseUri(baseUrl)
-            contentType("application/json")
         } When {
             delete("/booking/$id")
         } Then {
             statusCode(403)
+        }
+
+        Given {
+            baseUri(baseUrl)
+            accept("application/json")
+        } When {
+            get("/booking/$id")
+        } Then {
+            statusCode(200)
+            body("firstname", equalTo("Jim"))
         }
     }
 
